@@ -166,14 +166,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addTime() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Añadir tiempo'),
-          content: Column(
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        backgroundColor: Colors.white.withOpacity(0.9),
+        child: Container(
+          padding: EdgeInsets.all(20),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(
+                'Añadir tiempo',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color.fromARGB(255, 213, 77, 59),
+                ),
+              ),
+              SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
@@ -181,7 +195,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       controller: hoursController,
                       keyboardType: TextInputType.number,
                       style: TextStyle(fontSize: 14.0),
-                      decoration: InputDecoration(labelText: 'Horas'),
+                      decoration: InputDecoration(
+                        labelText: 'Horas',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                   ),
@@ -191,7 +210,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       controller: minutesController,
                       keyboardType: TextInputType.number,
                       style: TextStyle(fontSize: 14.0),
-                      decoration: InputDecoration(labelText: 'Minutos'),
+                      decoration: InputDecoration(
+                        labelText: 'Minutos',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                   ),
@@ -201,52 +225,69 @@ class _HomeScreenState extends State<HomeScreen> {
                       controller: secondsController,
                       keyboardType: TextInputType.number,
                       style: TextStyle(fontSize: 14.0),
-                      decoration: InputDecoration(labelText: 'Segundos'),
+                      decoration: InputDecoration(
+                        labelText: 'Segundos',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                   ),
                 ],
               ),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    child: Text('Cancelar'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  SizedBox(width: 10),
+                  ElevatedButton(
+                    child: Text('Aceptar'),
+                    style: ElevatedButton.styleFrom(
+                      primary: Color.fromARGB(255, 213, 77, 59),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () {
+                      int hours = int.tryParse(hoursController.text) ?? 0;
+                      int minutes = int.tryParse(minutesController.text) ?? 0;
+                      int seconds = int.tryParse(secondsController.text) ?? 0;
+                      
+                      if (hours == 0 && minutes == 0 && seconds == 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Por favor, introduce un tiempo válido')),
+                        );
+                      } else {
+                        Duration newTime = Duration(hours: hours, minutes: minutes, seconds: seconds);
+                        setState(() {
+                          times.add(newTime);
+                          originalTimes.add(newTime);
+                        });
+                        _saveTimersState();
+                        Navigator.of(context).pop();
+                      }
+                      
+                      hoursController.clear();
+                      minutesController.clear();
+                      secondsController.clear();
+                    },
+                  ),
+                ],
+              ),
             ],
           ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancelar'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Aceptar'),
-              onPressed: () {
-                int hours = int.tryParse(hoursController.text) ?? 0;
-                int minutes = int.tryParse(minutesController.text) ?? 0;
-                int seconds = int.tryParse(secondsController.text) ?? 0;
-                
-                if (hours == 0 && minutes == 0 && seconds == 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Por favor, introduce un tiempo válido')),
-                  );
-                } else {
-                  Duration newTime = Duration(hours: hours, minutes: minutes, seconds: seconds);
-                  setState(() {
-                    times.add(newTime);
-                    originalTimes.add(newTime);
-                  });
-                  _saveTimersState();
-                  Navigator.of(context).pop();
-                }
-                
-                hoursController.clear();
-                minutesController.clear();
-                secondsController.clear();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
