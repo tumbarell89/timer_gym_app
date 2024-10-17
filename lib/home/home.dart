@@ -7,6 +7,8 @@ import 'package:workmanager/workmanager.dart';
 import 'dart:convert';
 import '../constanst.dart';
 
+import 'package:timer_gym_app/features/drawer_menu.dart';
+
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
@@ -79,6 +81,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? timer;
   AudioPlayer audioPlayer = AudioPlayer();
   DateTime? lastUpdateTime;
+  Duration totalTime = Duration.zero;
+  Duration remainingTotalTime = Duration.zero;
 
   @override
   void initState() {
@@ -124,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
         isPaused = paused;
         currentTimerIndex = currentIndex;
         lastUpdateTime = DateTime.parse(lastUpdateTimeString);
+        _updateTotalTime();
       });
 
       if (isRunning && !isPaused) {
@@ -166,128 +171,248 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addTime() {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0),
-        ),
-        backgroundColor: Colors.white.withOpacity(0.9),
-        child: Container(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Añadir tiempo',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 213, 77, 59),
-                ),
-              ),
-              SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: hoursController,
-                      keyboardType: TextInputType.number,
-                      style: TextStyle(fontSize: 14.0),
-                      decoration: InputDecoration(
-                        labelText: 'Horas',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: minutesController,
-                      keyboardType: TextInputType.number,
-                      style: TextStyle(fontSize: 14.0),
-                      decoration: InputDecoration(
-                        labelText: 'Minutos',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: secondsController,
-                      keyboardType: TextInputType.number,
-                      style: TextStyle(fontSize: 14.0),
-                      decoration: InputDecoration(
-                        labelText: 'Segundos',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    child: Text('Cancelar'),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  SizedBox(width: 10),
-                  ElevatedButton(
-                    child: Text('Aceptar'),
-                    style: ElevatedButton.styleFrom(
-                      primary: Color.fromARGB(255, 213, 77, 59),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () {
-                      int hours = int.tryParse(hoursController.text) ?? 0;
-                      int minutes = int.tryParse(minutesController.text) ?? 0;
-                      int seconds = int.tryParse(secondsController.text) ?? 0;
-                      
-                      if (hours == 0 && minutes == 0 && seconds == 0) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Por favor, introduce un tiempo válido')),
-                        );
-                      } else {
-                        Duration newTime = Duration(hours: hours, minutes: minutes, seconds: seconds);
-                        setState(() {
-                          times.add(newTime);
-                          originalTimes.add(newTime);
-                        });
-                        _saveTimersState();
-                        Navigator.of(context).pop();
-                      }
-                      
-                      hoursController.clear();
-                      minutesController.clear();
-                      secondsController.clear();
-                    },
-                  ),
-                ],
-              ),
-            ],
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
           ),
-        ),
-      );
-    },
-  );
-}
+          backgroundColor: Colors.white.withOpacity(0.9),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Añadir tiempo',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color.fromARGB(255, 213, 77, 59),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: hoursController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Horas',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: minutesController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Minutos',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: secondsController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Segundos',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      child: Text('Cancelar'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    SizedBox(width: 10),
+                    ElevatedButton(
+                      child: Text('Aceptar'),
+                      style: ElevatedButton.styleFrom(
+                        primary: Color.fromARGB(255, 213, 77, 59),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () {
+                        int hours = int.tryParse(hoursController.text) ?? 0;
+                        int minutes = int.tryParse(minutesController.text) ?? 0;
+                        int seconds = int.tryParse(secondsController.text) ?? 0;
+                        
+                        if (hours == 0 && minutes == 0 && seconds == 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Por favor, introduce un tiempo válido')),
+                          );
+                        } else {
+                          Duration newTime = Duration(hours: hours, minutes: minutes, seconds: seconds);
+                          setState(() {
+                            times.add(newTime);
+                            originalTimes.add(newTime);
+                            _updateTotalTime();
+                          });
+                          _saveTimersState();
+                          Navigator.of(context).pop();
+                        }
+                        
+                        hoursController.clear();
+                        minutesController.clear();
+                        secondsController.clear();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _editTime(int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        TextEditingController editHoursController = TextEditingController(text: times[index].inHours.toString());
+        TextEditingController editMinutesController = TextEditingController(text: (times[index].inMinutes % 60).toString());
+        TextEditingController editSecondsController = TextEditingController(text: (times[index].inSeconds % 60).toString());
+
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          backgroundColor: Colors.white.withOpacity(0.9),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Editar tiempo',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color.fromARGB(255, 213, 77, 59),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: editHoursController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Horas',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: editMinutesController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Minutos',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: editSecondsController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Segundos',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      child: Text('Cancelar'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    SizedBox(width: 10),
+                    ElevatedButton(
+                      child: Text('Guardar'),
+                      style: ElevatedButton.styleFrom(
+                        primary: Color.fromARGB(255, 213, 77, 59),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:  BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () {
+                        int hours = int.tryParse(editHoursController.text) ?? 0;
+                        int minutes = int.tryParse(editMinutesController.text) ?? 0;
+                        int seconds = int.tryParse(editSecondsController.text) ?? 0;
+                        
+                        if (hours == 0 && minutes == 0 && seconds == 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Por favor, introduce un tiempo válido')),
+                          );
+                        } else {
+                          Duration newTime = Duration(hours: hours, minutes: minutes, seconds: seconds);
+                          setState(() {
+                            times[index] = newTime;
+                            originalTimes[index] = newTime;
+                            _updateTotalTime();
+                          });
+                          _saveTimersState();
+                          Navigator.of(context).pop();
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
@@ -305,6 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
       isPaused = false;
       currentTimerIndex = 0;
       lastUpdateTime = DateTime.now();
+      remainingTotalTime = totalTime;
     });
 
     _saveTimersState();
@@ -322,6 +448,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           if (times[currentTimerIndex] > Duration.zero) {
             times[currentTimerIndex] -= Duration(seconds: 1);
+            remainingTotalTime -= Duration(seconds: 1);
             
             if (times[currentTimerIndex].inSeconds <= 5 && times[currentTimerIndex].inSeconds > 0) {
               audioPlayer.play(AssetSource('beep.mp3'));
@@ -369,8 +496,44 @@ class _HomeScreenState extends State<HomeScreen> {
       for (int i = 0; i < times.length; i++) {
         times[i] = originalTimes[i];
       }
+      _updateTotalTime();
     });
     _saveTimersState();
+  }
+
+  void _updateTotalTime() {
+    totalTime = times.fold(Duration.zero, (prev, curr) => prev + curr);
+    if (!isRunning) {
+      remainingTotalTime = totalTime;
+    }
+  }
+
+  void _saveTimersPermanently() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('savedTimers', json.encode(originalTimes.map((d) => d.inSeconds).toList()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Tiempos guardados permanentemente')),
+    );
+  }
+
+  void _loadSavedTimers() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedTimersJson = prefs.getString('savedTimers');
+    if (savedTimersJson != null) {
+      setState(() {
+        originalTimes = (json.decode(savedTimersJson) as List).map((item) => Duration(seconds: item)).toList();
+        times = List.from(originalTimes);
+        _updateTotalTime();
+      });
+      _saveTimersState();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Tiempos cargados')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No hay tiempos guardados')),
+      );
+    }
   }
 
   @override
@@ -381,7 +544,19 @@ class _HomeScreenState extends State<HomeScreen> {
         flexibleSpace: Container(
           decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
         ),
+        actions: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Text(
+                _formatDuration(remainingTotalTime),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
       ),
+      drawer: DrawerMenu(),
       body: Container(
         decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
         child: Column(
@@ -403,16 +578,28 @@ class _HomeScreenState extends State<HomeScreen> {
                             : Colors.black,
                         ),
                       ),
-                      trailing: IconButton(
-                        icon: Icon(Icons.delete, color: AppColors.secondaryColor),
-                        onPressed: isRunning ? null : () {
-                          setState(() {
-                            times.removeAt(index);
-                            originalTimes.removeAt(index);
-                          });
-                          _saveTimersState();
-                        },
-                      ),
+                      trailing: !isRunning
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit, color: AppColors.secondaryColor),
+                                onPressed: () => _editTime(index),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: AppColors.secondaryColor),
+                                onPressed: () {
+                                  setState(() {
+                                    times.removeAt(index);
+                                    originalTimes.removeAt(index);
+                                    _updateTotalTime();
+                                  });
+                                  _saveTimersState();
+                                },
+                              ),
+                            ],
+                          )
+                        : null,
                     ),
                   );
                 },
@@ -423,71 +610,101 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 if (!isRunning)
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: ElevatedButton.icon(
                       icon: Icon(Icons.add),
                       label: Text('Adicionar'),
                       onPressed: _addTime,
                       style: ElevatedButton.styleFrom(
                         primary: Color.fromARGB(255, 213, 77, 59),
-                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
                     )
                   ),
                 if (times.isNotEmpty && !isRunning)
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: ElevatedButton.icon(
                       icon: Icon(Icons.play_arrow),
                       label: Text('Iniciar'),
                       onPressed: _startTimers,
                       style: ElevatedButton.styleFrom(
                         primary: Color.fromARGB(255, 213, 77, 59),
-                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
                     ),
                   ),
                 if (isRunning && !isPaused)
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(8.0),
                     child:  ElevatedButton.icon(
                       icon: Icon(Icons.pause),
                       label: Text('Pausar'),
                       onPressed: _pauseTimer,
                       style: ElevatedButton.styleFrom(
                         primary: AppColors.secondaryColor,
-                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
                     ),
                   ),
                 if (isRunning && isPaused)
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: ElevatedButton.icon(
                       icon: Icon(Icons.play_arrow),
                       label: Text('Reanudar'),
                       onPressed: _resumeTimer,
                       style: ElevatedButton.styleFrom(
-                        primary: AppColors.primaryColor,
-                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        primary: Color.fromARGB(255, 213, 77, 59),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
                     ),
                   ),
                 if (isRunning)
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: ElevatedButton.icon(
                       icon: Icon(Icons.stop),
                       label: Text('Detener'),
                       onPressed: _stopTimers,
                       style: ElevatedButton.styleFrom(
                         primary: Colors.red,
-                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
                     ),
                   ),
               ],
             ),
+            if (!isRunning)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: ElevatedButton.icon(
+                      icon: Icon(Icons.save),
+                      label: Text('Guardar'),
+                      onPressed: _saveTimersPermanently,
+                      style: ElevatedButton.styleFrom(
+                        primary: Colors.green,
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: ElevatedButton.icon(
+                      icon: Icon(Icons.folder_open),
+                      label: Text('Cargar'),
+                      onPressed: _loadSavedTimers,
+                      style: ElevatedButton.styleFrom(
+                        primary: Colors.blue,
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),

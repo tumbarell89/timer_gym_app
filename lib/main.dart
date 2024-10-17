@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:timer_gym_app/features/map_screen.dart';
 import 'package:timer_gym_app/home/home.dart';
 import 'package:timer_gym_app/home/splash.dart';
+import 'package:timer_gym_app/features/drawer_menu.dart';
 
 import './constanst.dart';
 
@@ -16,13 +18,15 @@ class MyApp extends StatelessWidget {
       title: 'Gym Timer',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           systemOverlayStyle: SystemUiOverlayStyle.light,
         ),
       ),
-      home: SplashScreen(),
+      initialRoute: '/',
       routes: {
+        '/': (context) => SplashScreen(),
         '/home': (context) => HomeScreen(),
+        '/map': (context) => MapScreen(),
       },
     );
   }
