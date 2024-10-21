@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:timer_gym_app/features/cubit/timer_cubit.dart';
 import 'package:timer_gym_app/features/map_screen.dart';
 import 'package:timer_gym_app/home/home.dart';
 import 'package:timer_gym_app/home/splash.dart';
-import 'package:timer_gym_app/features/drawer_menu.dart';
-
-import './constanst.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(
+    BlocProvider(
+      create: (context) => TimerCubit(),
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -18,15 +21,13 @@ class MyApp extends StatelessWidget {
       title: 'Gym Timer',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        appBarTheme: const AppBarTheme(
-          systemOverlayStyle: SystemUiOverlayStyle.light,
-        ),
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       initialRoute: '/',
       routes: {
         '/': (context) => SplashScreen(),
         '/home': (context) => HomeScreen(),
-        '/map': (context) => MapScreen(),
+        '/map': (context) => MapScreen(configuredTimes: [],),
       },
     );
   }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:timer_gym_app/features/cubit/timer_cubit.dart';
 
 class DrawerMenu extends StatelessWidget {
   @override
@@ -32,7 +34,12 @@ class DrawerMenu extends StatelessWidget {
             title: Text('Mapa de Carrera'),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/map');
+              final times = context.read<TimerCubit>().state.times;
+              Navigator.pushNamed(
+                context,
+                '/map',
+                arguments: times,
+              );
             },
           ),
         ],

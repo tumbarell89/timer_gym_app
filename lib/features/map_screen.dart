@@ -3,8 +3,14 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map/plugin_api.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 
 class MapScreen extends StatefulWidget {
+  final List<Duration> configuredTimes;
+
+  MapScreen({Key? key, required this.configuredTimes}) : super(key: key);
+
   @override
   _MapScreenState createState() => _MapScreenState();
 }
@@ -16,12 +22,17 @@ class _MapScreenState extends State<MapScreen> {
   bool isRunning = false;
   bool isPaused = false;
   Duration elapsedTime = Duration.zero;
-  Duration configuredTime = Duration.zero;
+  Duration totalConfiguredTime = Duration.zero;
+  int currentTimerIndex = 0;
+  Timer? timer;
+  AudioPlayer audioPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
+    audioPlayer.setSource(AssetSource('beep.mp3'));
+    totalConfiguredTime = widget.configuredTimes.fold(Duration.zero, (prev, curr) => prev + curr);
   }
 
   Future<void> _getCurrentLocation() async {
@@ -65,7 +76,7 @@ class _MapScreenState extends State<MapScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(right: 16.0),
                 child: Text(
-                  _formatDuration(configuredTime > Duration.zero ? configuredTime - elapsedTime : elapsedTime),
+                  _formatDuration(elapsedTime),
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -85,9 +96,7 @@ class _MapScreenState extends State<MapScreen> {
                     child: Text('Iniciar Libre'),
                   ),
                   ElevatedButton(
-                    onPressed: () {
-                      _startConfiguredRun(Duration(minutes: 30));
-                    },
+                    onPressed: _startConfiguredRun,
                     child: Text('Iniciar Configurado'),
                   ),
                 ],
@@ -158,24 +167,36 @@ class _MapScreenState extends State<MapScreen> {
   void _startFreeRun() {
     setState(() {
       isRunning = true;
+      isPaused = false;
+      elapsedTime = Duration.zero;
       routePoints.clear();
       if (currentLocation != null) {
         routePoints.add(currentLocation!);
       }
     });
     _startLocationTracking();
+    _startTimer();
   }
 
-  void _startConfiguredRun(Duration configuredTime) {
+  void _startConfiguredRun() {
+    if (widget.configuredTimes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No hay tiempos configurados. Por favor, configura los tiempos en la pantalla principal.')),
+      );
+      return;
+    }
     setState(() {
       isRunning = true;
-      this.configuredTime = configuredTime;
+      isPaused = false;
+      elapsedTime = Duration.zero;
+      currentTimerIndex = 0;
       routePoints.clear();
       if (currentLocation != null) {
         routePoints.add(currentLocation!);
       }
     });
     _startLocationTracking();
+    _startConfiguredTimer();
   }
 
   void _startLocationTracking() {
@@ -190,6 +211,38 @@ class _MapScreenState extends State<MapScreen> {
           LatLng newPoint = LatLng(position.latitude, position.longitude);
           routePoints.add(newPoint);
           mapController.move(newPoint, mapController.zoom);
+        });
+      }
+    });
+  }
+
+  void _startTimer() {
+    timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (!isPaused) {
+        setState(() {
+          elapsedTime += Duration(seconds: 1);
+        });
+      }
+    });
+  }
+
+  void _startConfiguredTimer() {
+    timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (!isPaused) {
+        setState(() {
+          if (widget.configuredTimes[currentTimerIndex] > Duration.zero) {
+            widget.configuredTimes[currentTimerIndex] -= Duration(seconds: 1);
+            elapsedTime += Duration(seconds: 1);
+            
+            if (widget.configuredTimes[currentTimerIndex].inSeconds <= 5 && widget.configuredTimes[currentTimerIndex].inSeconds > 0) {
+              audioPlayer.play(AssetSource('beep.mp3'));
+            }
+          } else {
+            currentTimerIndex++;
+            if (currentTimerIndex >= widget.configuredTimes.length) {
+              _stopRun();
+            }
+          }
         });
       }
     });
@@ -212,13 +265,24 @@ class _MapScreenState extends State<MapScreen> {
       isRunning = false;
       isPaused = false;
       elapsedTime = Duration.zero;
+      currentTimerIndex = 0;
+      widget.configuredTimes.forEach((element) => element = Duration.zero);
     });
+    timer?.cancel();
   }
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitHours = twoDigits(duration.inHours);
     String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
     String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+    return "$twoDigitHours:$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    audioPlayer.dispose();
+    super.dispose();
   }
 }

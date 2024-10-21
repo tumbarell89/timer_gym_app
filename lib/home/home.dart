@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timer_gym_app/features/cubit/timer_cubit.dart';
+import 'package:timer_gym_app/features/drawer_menu.dart';
 import 'package:workmanager/workmanager.dart';
 import 'dart:convert';
-import '../constanst.dart';
-
-import 'package:timer_gym_app/features/drawer_menu.dart';
+import '../constanst.dart';// Import the TimerCubit
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -145,6 +146,9 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setBool('isPaused', isPaused);
     await prefs.setInt('currentTimerIndex', currentTimerIndex);
     await prefs.setString('lastUpdateTime', DateTime.now().toIso8601String());
+  
+    // Actualizar el TimerCubit
+    context.read<TimerCubit>().setTimes(times);
   }
 
   void _resumeTimersFromLastUpdate() {
@@ -536,178 +540,190 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  List<Duration> getTimes() {
+    return times;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Gym Timer'),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
-        ),
-        actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Text(
-                _formatDuration(remainingTotalTime),
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+    return BlocBuilder<TimerCubit, TimerState>(
+      builder: (context, state) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('Gym Timer'),
+            flexibleSpace: Container(
+              decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
             ),
+            actions: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: Text(
+                    _formatDuration(remainingTotalTime),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      drawer: DrawerMenu(),
-      body: Container(
-        decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: times.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: ListTile(
-                      title: Text(
-                        _formatDuration(times[index]),
-                        style: TextStyle(
-                          fontSize: 24, 
-                          fontWeight: FontWeight.bold,
-                          color: index == currentTimerIndex && isRunning 
-                            ? AppColors.primaryColor 
-                            : Colors.black,
-                        ),
-                      ),
-                      trailing: !isRunning
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit, color: AppColors.secondaryColor),
-                                onPressed: () => _editTime(index),
+          drawer: DrawerMenu(), 
+          body: Builder( 
+            builder: (BuildContext context) {
+              return Container(
+                decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: times.length,
+                        itemBuilder: (context, index) {
+                          return Card(
+                            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                            child: ListTile(
+                              title: Text(
+                                _formatDuration(times[index]),
+                                style: TextStyle(
+                                  fontSize: 24, 
+                                  fontWeight: FontWeight.bold,
+                                  color: index == currentTimerIndex && isRunning 
+                                    ? AppColors.primaryColor 
+                                    : Colors.black,
+                                ),
                               ),
-                              IconButton(
-                                icon: Icon(Icons.delete, color: AppColors.secondaryColor),
-                                onPressed: () {
-                                  setState(() {
-                                    times.removeAt(index);
-                                    originalTimes.removeAt(index);
-                                    _updateTotalTime();
-                                  });
-                                  _saveTimersState();
-                                },
+                              trailing: !isRunning
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.edit, color: AppColors.secondaryColor),
+                                        onPressed: () => _editTime(index),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete, color: AppColors.secondaryColor),
+                                        onPressed: () {
+                                          setState(() {
+                                            times.removeAt(index);
+                                            originalTimes.removeAt(index);
+                                            _updateTotalTime();
+                                          });
+                                          _saveTimersState();
+                                        },
+                                      ),
+                                    ],
+                                  )
+                                : null,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (!isRunning)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.add),
+                              label: Text('Adicionar'),
+                              onPressed: _addTime,
+                              style: ElevatedButton.styleFrom(
+                                primary: Color.fromARGB(255, 213, 77, 59),
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               ),
-                            ],
-                          )
-                        : null,
+                            )
+                          ),
+                        if (times.isNotEmpty && !isRunning)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.play_arrow),
+                              label: Text('Iniciar'),
+                              onPressed: _startTimers,
+                              style: ElevatedButton.styleFrom(
+                                primary: Color.fromARGB(255, 213, 77, 59),
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                          ),
+                        if (isRunning && !isPaused)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child:  ElevatedButton.icon(
+                              icon: Icon(Icons.pause),
+                              label: Text('Pausar'),
+                              onPressed: _pauseTimer,
+                              style: ElevatedButton.styleFrom(
+                                primary: AppColors.secondaryColor,
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                          ),
+                        if (isRunning && isPaused)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.play_arrow),
+                              label: Text('Reanudar'),
+                              onPressed: _resumeTimer,
+                              style: ElevatedButton.styleFrom(
+                                primary: Color.fromARGB(255, 213, 77, 59),
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                          ),
+                        if (isRunning)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.stop),
+                              label: Text('Detener'),
+                              onPressed: _stopTimers,
+                              style: ElevatedButton.styleFrom(
+                                primary: Colors.red,
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  );
-                },
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (!isRunning)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton.icon(
-                      icon: Icon(Icons.add),
-                      label: Text('Adicionar'),
-                      onPressed: _addTime,
-                      style: ElevatedButton.styleFrom(
-                        primary: Color.fromARGB(255, 213, 77, 59),
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    if (!isRunning)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.save),
+                              label: Text('Guardar'),
+                              onPressed: _saveTimersPermanently,
+                              style: ElevatedButton.styleFrom(
+                                primary: Colors.green,
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.folder_open),
+                              label: Text('Cargar'),
+                              onPressed: _loadSavedTimers,
+                              style: ElevatedButton.styleFrom(
+                                primary: Colors.blue,
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-                  ),
-                if (times.isNotEmpty && !isRunning)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton.icon(
-                      icon: Icon(Icons.play_arrow),
-                      label: Text('Iniciar'),
-                      onPressed: _startTimers,
-                      style: ElevatedButton.styleFrom(
-                        primary: Color.fromARGB(255, 213, 77, 59),
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                  ),
-                if (isRunning && !isPaused)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child:  ElevatedButton.icon(
-                      icon: Icon(Icons.pause),
-                      label: Text('Pausar'),
-                      onPressed: _pauseTimer,
-                      style: ElevatedButton.styleFrom(
-                        primary: AppColors.secondaryColor,
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                  ),
-                if (isRunning && isPaused)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton.icon(
-                      icon: Icon(Icons.play_arrow),
-                      label: Text('Reanudar'),
-                      onPressed: _resumeTimer,
-                      style: ElevatedButton.styleFrom(
-                        primary: Color.fromARGB(255, 213, 77, 59),
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                  ),
-                if (isRunning)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton.icon(
-                      icon: Icon(Icons.stop),
-                      label: Text('Detener'),
-                      onPressed: _stopTimers,
-                      style: ElevatedButton.styleFrom(
-                        primary: Colors.red,
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            if (!isRunning)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton.icon(
-                      icon: Icon(Icons.save),
-                      label: Text('Guardar'),
-                      onPressed: _saveTimersPermanently,
-                      style: ElevatedButton.styleFrom(
-                        primary: Colors.green,
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton.icon(
-                      icon: Icon(Icons.folder_open),
-                      label: Text('Cargar'),
-                      onPressed: _loadSavedTimers,
-                      style: ElevatedButton.styleFrom(
-                        primary: Colors.blue,
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
+                  ],
+                ),
+              );
+            }
+          ),
+        );
+      },
     );
   }
 
