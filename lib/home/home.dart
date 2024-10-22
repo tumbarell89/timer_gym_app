@@ -130,6 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
         currentTimerIndex = currentIndex;
         lastUpdateTime = DateTime.parse(lastUpdateTimeString);
         _updateTotalTime();
+        context.read<TimerCubit>().setTimes(times);
       });
 
       if (isRunning && !isPaused) {

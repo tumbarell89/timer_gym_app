@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:timer_gym_app/features/cubit/timer_cubit.dart';
 
 class MapScreen extends StatefulWidget {
   final List<Duration> configuredTimes;
@@ -27,6 +29,9 @@ class _MapScreenState extends State<MapScreen> {
   Timer? timer;
   AudioPlayer audioPlayer = AudioPlayer();
   bool isConfiguredRun = false;
+  double totalDistance = 0;
+  double currentSpeed = 0;
+  DateTime? lastLocationTime;
 
   @override
   void initState() {
@@ -34,6 +39,11 @@ class _MapScreenState extends State<MapScreen> {
     _getCurrentLocation();
     audioPlayer.setSource(AssetSource('beep.mp3'));
     remainingTime = Duration.zero;
+    
+    // Add configured times to Cubit
+    if (widget.configuredTimes.isNotEmpty) {
+      context.read<TimerCubit>().setTimes(widget.configuredTimes);
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -83,82 +93,112 @@ class _MapScreenState extends State<MapScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          if (!isRunning)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                    onPressed: _startFreeRun,
-                    child: Text('Iniciar Libre'),
-                  ),
-                  ElevatedButton(
-                    onPressed: _startConfiguredRun,
-                    child: Text('Iniciar Configurado'),
-                  ),
-                ],
-              ),
-            ),
-          if (isRunning)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                    onPressed: isPaused ? _resumeRun : _pauseRun,
-                    child: Text(isPaused ? 'Reanudar' : 'Pausar'),
-                  ),
-                  ElevatedButton(
-                    onPressed: _stopRun,
-                    child: Text('Detener'),
-                    style: ElevatedButton.styleFrom(primary: Colors.red),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: FlutterMap(
-              mapController: mapController,
-              options: MapOptions(
-                center: currentLocation ?? LatLng(0, 0),
-                zoom: 15.0,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  subdomains: ['a', 'b', 'c'],
-                ),
-                MarkerLayer(
-                  markers: [
-                    if (currentLocation != null)
-                      Marker(
-                        point: currentLocation!,
-                        width: 80.0,
-                        height: 80.0,
-                        builder: (ctx) => Icon(
-                          Icons.location_on,
-                          color: Colors.red,
-                          size: 40.0,
-                        ),
+          Column(
+            children: [
+              if (!isRunning)
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _startFreeRun,
+                        child: Text('Iniciar Libre'),
                       ),
-                  ],
+                      ElevatedButton(
+                        onPressed: _startConfiguredRun,
+                        child: Text('Iniciar Configurado'),
+                      ),
+                    ],
+                  ),
                 ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: routePoints,
-                      strokeWidth: 4.0,
-                      color: Colors.red,
+              if (isRunning)
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: isPaused ? _resumeRun : _pauseRun,
+                        child: Text(isPaused ? 'Reanudar' : 'Pausar'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _stopRun,
+                        child: Text('Detener'),
+                        style: ElevatedButton.styleFrom(primary: Colors.red),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: FlutterMap(
+                  mapController: mapController,
+                  options: MapOptions(
+                    center: currentLocation ?? LatLng(0, 0),
+                    zoom: 15.0,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      subdomains: ['a', 'b', 'c'],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        if (currentLocation != null)
+                          Marker(
+                            point: currentLocation!,
+                            width: 80.0,
+                            height: 80.0,
+                            builder: (ctx) => Icon(
+                              Icons.location_on,
+                              color: Colors.red,
+                              size: 40.0,
+                            ),
+                          ),
+                      ],
+                    ),
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: routePoints,
+                          strokeWidth: 4.0,
+                          color: Colors.red,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+          if ((isPaused || !isRunning) && routePoints.isNotEmpty)
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Distancia: ${totalDistance.toStringAsFixed(2)} km'),
+                    Text('Velocidad: ${currentSpeed.toStringAsFixed(2)} km/h'),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -172,6 +212,8 @@ class _MapScreenState extends State<MapScreen> {
       remainingTime = Duration.zero;
       isConfiguredRun = false;
       routePoints.clear();
+      totalDistance = 0;
+      currentSpeed = 0;
       if (currentLocation != null) {
         routePoints.add(currentLocation!);
       }
@@ -194,6 +236,8 @@ class _MapScreenState extends State<MapScreen> {
       currentTimerIndex = 0;
       isConfiguredRun = true;
       routePoints.clear();
+      totalDistance = 0;
+      currentSpeed = 0;
       if (currentLocation != null) {
         routePoints.add(currentLocation!);
       }
@@ -213,8 +257,28 @@ class _MapScreenState extends State<MapScreen> {
       if (isRunning && !isPaused) {
         setState(() {
           LatLng newPoint = LatLng(position.latitude, position.longitude);
+          if (routePoints.isNotEmpty) {
+            totalDistance += Geolocator.distanceBetween(
+              routePoints.last.latitude,
+              routePoints.last.longitude,
+              newPoint.latitude,
+              newPoint.longitude,
+            ) / 1000; // Convert to kilometers
+          }
           routePoints.add(newPoint);
           mapController.move(newPoint, mapController.zoom);
+
+          if (lastLocationTime != null) {
+            Duration timeDiff = DateTime.now().difference(lastLocationTime!);
+            double distanceInKm = Geolocator.distanceBetween(
+              routePoints[routePoints.length - 2].latitude,
+              routePoints[routePoints.length - 2].longitude,
+              newPoint.latitude,
+              newPoint.longitude,
+            ) / 1000;
+            currentSpeed = (distanceInKm / timeDiff.inSeconds) * 3600; // km/h
+          }
+          lastLocationTime = DateTime.now();
         });
       }
     });
@@ -253,7 +317,6 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-
   void _pauseRun() {
     setState(() {
       isPaused = true;
@@ -263,6 +326,7 @@ class _MapScreenState extends State<MapScreen> {
   void _resumeRun() {
     setState(() {
       isPaused = false;
+      lastLocationTime = DateTime.now();
     });
   }
 
