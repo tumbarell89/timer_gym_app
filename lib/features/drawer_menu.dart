@@ -26,7 +26,7 @@ class DrawerMenu extends StatelessWidget {
             title: Text('Inicio'),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/');
+              Navigator.pushReplacementNamed(context, '/home');
             },
           ),
           ListTile(
@@ -34,11 +34,11 @@ class DrawerMenu extends StatelessWidget {
             title: Text('Mapa de Carrera'),
             onTap: () {
               Navigator.pop(context);
-              final times = context.read<TimerCubit>().state.times;
+              final timerCubit = context.read<TimerCubit>();
               Navigator.pushNamed(
                 context,
                 '/map',
-                arguments: times,
+                arguments: timerCubit.state.times,
               );
             },
           ),

@@ -272,6 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         } else {
                           Duration newTime = Duration(hours: hours, minutes: minutes, seconds: seconds);
+                          context.read<TimerCubit>().addTime(newTime);
                           setState(() {
                             times.add(newTime);
                             originalTimes.add(newTime);

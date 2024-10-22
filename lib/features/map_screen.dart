@@ -22,17 +22,18 @@ class _MapScreenState extends State<MapScreen> {
   bool isRunning = false;
   bool isPaused = false;
   Duration elapsedTime = Duration.zero;
-  Duration totalConfiguredTime = Duration.zero;
+  Duration remainingTime = Duration.zero;
   int currentTimerIndex = 0;
   Timer? timer;
   AudioPlayer audioPlayer = AudioPlayer();
+  bool isConfiguredRun = false;
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
     audioPlayer.setSource(AssetSource('beep.mp3'));
-    totalConfiguredTime = widget.configuredTimes.fold(Duration.zero, (prev, curr) => prev + curr);
+    remainingTime = Duration.zero;
   }
 
   Future<void> _getCurrentLocation() async {
@@ -71,16 +72,15 @@ class _MapScreenState extends State<MapScreen> {
       appBar: AppBar(
         title: Text('Mapa de Carrera'),
         actions: [
-          if (isRunning)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 16.0),
-                child: Text(
-                  _formatDuration(elapsedTime),
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Text(
+                isRunning ? _formatDuration(isConfiguredRun ? remainingTime : elapsedTime) : '00:00:00',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
+          ),
         ],
       ),
       body: Column(
@@ -169,6 +169,8 @@ class _MapScreenState extends State<MapScreen> {
       isRunning = true;
       isPaused = false;
       elapsedTime = Duration.zero;
+      remainingTime = Duration.zero;
+      isConfiguredRun = false;
       routePoints.clear();
       if (currentLocation != null) {
         routePoints.add(currentLocation!);
@@ -190,13 +192,15 @@ class _MapScreenState extends State<MapScreen> {
       isPaused = false;
       elapsedTime = Duration.zero;
       currentTimerIndex = 0;
+      isConfiguredRun = true;
       routePoints.clear();
       if (currentLocation != null) {
         routePoints.add(currentLocation!);
       }
+      remainingTime = widget.configuredTimes.fold(Duration.zero, (prev, curr) => prev + curr);
     });
     _startLocationTracking();
-    _startConfiguredTimer();
+    _startTimer();
   }
 
   void _startLocationTracking() {
@@ -220,33 +224,35 @@ class _MapScreenState extends State<MapScreen> {
     timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (!isPaused) {
         setState(() {
-          elapsedTime += Duration(seconds: 1);
-        });
-      }
-    });
-  }
+          if (isConfiguredRun) {
+            if (remainingTime > Duration.zero) {
+              remainingTime -= Duration(seconds: 1);
+              elapsedTime += Duration(seconds: 1);
 
-  void _startConfiguredTimer() {
-    timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (!isPaused) {
-        setState(() {
-          if (widget.configuredTimes[currentTimerIndex] > Duration.zero) {
-            widget.configuredTimes[currentTimerIndex] -= Duration(seconds: 1);
-            elapsedTime += Duration(seconds: 1);
-            
-            if (widget.configuredTimes[currentTimerIndex].inSeconds <= 5 && widget.configuredTimes[currentTimerIndex].inSeconds > 0) {
-              audioPlayer.play(AssetSource('beep.mp3'));
-            }
-          } else {
-            currentTimerIndex++;
-            if (currentTimerIndex >= widget.configuredTimes.length) {
+              if (widget.configuredTimes[currentTimerIndex].inSeconds <= 5 && widget.configuredTimes[currentTimerIndex].inSeconds > 0) {
+                audioPlayer.play(AssetSource('beep.mp3'));
+              }
+
+              if (widget.configuredTimes[currentTimerIndex] > Duration.zero) {
+                widget.configuredTimes[currentTimerIndex] -= Duration(seconds: 1);
+              } else {
+                currentTimerIndex++;
+                if (currentTimerIndex >= widget.configuredTimes.length) {
+                  _stopRun();
+                }
+              }
+            } else {
               _stopRun();
             }
+          } else {
+            elapsedTime += Duration(seconds: 1);
+            remainingTime = elapsedTime;
           }
         });
       }
     });
   }
+
 
   void _pauseRun() {
     setState(() {
@@ -266,7 +272,8 @@ class _MapScreenState extends State<MapScreen> {
       isPaused = false;
       elapsedTime = Duration.zero;
       currentTimerIndex = 0;
-      widget.configuredTimes.forEach((element) => element = Duration.zero);
+      remainingTime = isConfiguredRun ? widget.configuredTimes.fold(Duration.zero, (prev, curr) => prev + curr) : Duration.zero;
+      isConfiguredRun = false;
     });
     timer?.cancel();
   }

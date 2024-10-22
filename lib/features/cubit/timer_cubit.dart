@@ -17,6 +17,28 @@ class TimerCubit extends Cubit<TimerState> {
     emit(TimerState(times));
   }
 
+  void addTime(Duration time) {
+    final currentTimes = List<Duration>.from(state.times);
+    currentTimes.add(time);
+    emit(TimerState(currentTimes));
+  }
+
+  void removeTime(int index) {
+    final currentTimes = List<Duration>.from(state.times);
+    if (index >= 0 && index < currentTimes.length) {
+      currentTimes.removeAt(index);
+      emit(TimerState(currentTimes));
+    }
+  }
+
+  void updateTime(int index, Duration newTime) {
+    final currentTimes = List<Duration>.from(state.times);
+    if (index >= 0 && index < currentTimes.length) {
+      currentTimes[index] = newTime;
+      emit(TimerState(currentTimes));
+    }
+  }
+
   List<Duration> getTimes() {
     return state.times;
   }

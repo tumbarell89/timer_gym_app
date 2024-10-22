@@ -27,7 +27,10 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => SplashScreen(),
         '/home': (context) => HomeScreen(),
-        '/map': (context) => MapScreen(configuredTimes: [],),
+        '/map': (context) {
+          final timerCubit = context.read<TimerCubit>();
+          return MapScreen(configuredTimes: timerCubit.state.times);
+        },
       },
     );
   }
