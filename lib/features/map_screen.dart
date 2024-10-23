@@ -20,6 +20,7 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   MapController mapController = MapController();
   LatLng? currentLocation;
+  LatLng? startLocation;
   List<LatLng> routePoints = [];
   bool isRunning = false;
   bool isPaused = false;
@@ -32,6 +33,7 @@ class _MapScreenState extends State<MapScreen> {
   double totalDistance = 0;
   double currentSpeed = 0;
   DateTime? lastLocationTime;
+  List<Duration> originalConfiguredTimes = [];
 
   @override
   void initState() {
@@ -39,8 +41,8 @@ class _MapScreenState extends State<MapScreen> {
     _getCurrentLocation();
     audioPlayer.setSource(AssetSource('beep.mp3'));
     remainingTime = Duration.zero;
-    
-    // Add configured times to Cubit
+    originalConfiguredTimes = List.from(widget.configuredTimes);
+
     if (widget.configuredTimes.isNotEmpty) {
       context.read<TimerCubit>().setTimes(widget.configuredTimes);
     }
@@ -146,6 +148,17 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     MarkerLayer(
                       markers: [
+                        if (startLocation != null)
+                          Marker(
+                            point: startLocation!,
+                            width: 80.0,
+                            height: 80.0,
+                            builder: (ctx) => Icon(
+                              Icons.location_on,
+                              color: Colors.blue,
+                              size: 40.0,
+                            ),
+                          ),
                         if (currentLocation != null)
                           Marker(
                             point: currentLocation!,
@@ -214,6 +227,7 @@ class _MapScreenState extends State<MapScreen> {
       routePoints.clear();
       totalDistance = 0;
       currentSpeed = 0;
+      startLocation = currentLocation;
       if (currentLocation != null) {
         routePoints.add(currentLocation!);
       }
@@ -223,7 +237,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _startConfiguredRun() {
-    if (widget.configuredTimes.isEmpty) {
+    if (originalConfiguredTimes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No hay tiempos configurados. Por favor, configura los tiempos en la pantalla principal.')),
       );
@@ -238,9 +252,12 @@ class _MapScreenState extends State<MapScreen> {
       routePoints.clear();
       totalDistance = 0;
       currentSpeed = 0;
+      startLocation = currentLocation;
       if (currentLocation != null) {
         routePoints.add(currentLocation!);
       }
+      widget.configuredTimes.clear();
+      widget.configuredTimes.addAll(originalConfiguredTimes);
       remainingTime = widget.configuredTimes.fold(Duration.zero, (prev, curr) => prev + curr);
     });
     _startLocationTracking();
@@ -266,6 +283,7 @@ class _MapScreenState extends State<MapScreen> {
             ) / 1000; // Convert to kilometers
           }
           routePoints.add(newPoint);
+          currentLocation = newPoint;
           mapController.move(newPoint, mapController.zoom);
 
           if (lastLocationTime != null) {
@@ -336,8 +354,10 @@ class _MapScreenState extends State<MapScreen> {
       isPaused = false;
       elapsedTime = Duration.zero;
       currentTimerIndex = 0;
-      remainingTime = isConfiguredRun ? widget.configuredTimes.fold(Duration.zero, (prev, curr) => prev + curr) : Duration.zero;
+      remainingTime = isConfiguredRun ? originalConfiguredTimes.fold(Duration.zero, (prev, curr) => prev + curr) : Duration.zero;
       isConfiguredRun = false;
+      widget.configuredTimes.clear();
+      widget.configuredTimes.addAll(originalConfiguredTimes);
     });
     timer?.cancel();
   }
